@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio - Paper Trading Platform</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">📈 Paper Trading</div>
+        <ul class="nav-menu">
+            <li><a href="dashboard.html">Dashboard</a></li>
+            <li><a href="portfolio.html" class="active">Portfolio</a></li>
+            <li><a href="buy-stock.html">Buy Stock</a></li>
+            <li><a href="transactions.html">Transactions</a></li>
+            <li><a href="watchlist.html">Watchlist</a></li>
+            <li><a href="#" id="logout-btn">Logout</a></li>
+        </ul>
+    </nav>
+    
+    <div class="container">
+        <div class="page-header">
+            <h1>My Portfolio</h1>
+            <button id="refresh-btn" class="btn btn-secondary">↻ Refresh Prices</button>
+        </div>
+        
+        <!-- Portfolio Summary -->
+        <div class="summary-cards">
+            <div class="card summary-card">
+                <h3>Total Value</h3>
+                <p class="value" id="total-value">$0.00</p>
+            </div>
+            
+            <div class="card summary-card">
+                <h3>Cash</h3>
+                <p class="value" id="cash-balance">$0.00</p>
+            </div>
+            
+            <div class="card summary-card">
+                <h3>Stocks</h3>
+                <p class="value" id="stock-value">$0.00</p>
+            </div>
+            
+            <div class="card summary-card">
+                <h3>Total P/L</h3>
+                <p class="value" id="total-pl">$0.00</p>
+                <p class="change" id="total-pl-percent">0.00%</p>
+            </div>
+        </div>
+        
+        <!-- Holdings Table -->
+        <div class="card">
+            <h2>Holdings</h2>
+            <div class="table-container">
+                <table class="portfolio-table" id="holdings-table">
+                    <thead>
+                        <tr>
+                            <th>Stock</th>
+                            <th>Shares</th>
+                            <th>Avg Cost</th>
+                            <th>Current Price</th>
+                            <th>Total Value</th>
+                            <th>P/L</th>
+                            <th>P/L %</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="holdings-body">
+                        <tr>
+                            <td colspan="8" class="loading">Loading portfolio...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="no-holdings" style="display: none; text-align: center; padding: 40px;">
+                <p>You don't have any stocks yet.</p>
+                <a href="buy-stock.html" class="btn btn-primary">Buy Your First Stock</a>
+            </div>
+        </div>
+    </div>
+    
+    <script src="js/validation.js"></script>
+    <script src="js/portfolio.js"></script>
+</body>
+</html>

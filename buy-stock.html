@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buy Stock - Paper Trading Platform</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">📈 Paper Trading</div>
+        <ul class="nav-menu">
+            <li><a href="dashboard.html">Dashboard</a></li>
+            <li><a href="portfolio.html">Portfolio</a></li>
+            <li><a href="buy-stock.html" class="active">Buy Stock</a></li>
+            <li><a href="transactions.html">Transactions</a></li>
+            <li><a href="watchlist.html">Watchlist</a></li>
+            <li><a href="#" id="logout-btn">Logout</a></li>
+        </ul>
+    </nav>
+    
+    <div class="container">
+        <div class="page-header">
+            <h1>Buy Stock</h1>
+            <p>Purchase shares with your virtual cash</p>
+        </div>
+        
+        <div class="card">
+            <form id="buy-stock-form">
+                <div class="form-group">
+                    <label for="ticker-symbol">Ticker Symbol *</label>
+                    <input 
+                        type="text" 
+                        id="ticker-symbol" 
+                        name="ticker_symbol" 
+                        required
+                        placeholder="e.g., AAPL"
+                        style="text-transform: uppercase"
+                    >
+                    <small>Enter stock ticker symbol</small>
+                    <button type="button" id="lookup-btn" class="btn btn-secondary btn-sm">Lookup Price</button>
+                </div>
+                
+                <div id="stock-info" style="display: none;">
+                    <div class="stock-preview">
+                        <h3 id="stock-name"></h3>
+                        <p>Current Price: <strong id="current-price"></strong></p>
+                        <p>Change: <span id="price-change"></span></p>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="shares">Number of Shares *</label>
+                    <input 
+                        type="number" 
+                        id="shares" 
+                        name="shares" 
+                        required
+                        min="1"
+                        step="1"
+                        placeholder="e.g., 10"
+                    >
+                    <small>Must be a positive integer</small>
+                </div>
+                
+                <div id="cost-preview" style="display: none;">
+                    <div class="cost-summary">
+                        <h3>Order Summary</h3>
+                        <p>Shares: <span id="summary-shares"></span></p>
+                        <p>Price per share: <span id="summary-price"></span></p>
+                        <p><strong>Total Cost: <span id="total-cost"></span></strong></p>
+                        <p>Available Cash: <span id="available-cash"></span></p>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="notes">Notes (Optional)</label>
+                    <textarea 
+                        id="notes" 
+                        name="notes" 
+                        rows="3"
+                        placeholder="Why are you buying this stock?"
+                    ></textarea>
+                </div>
+                
+                <div id="buy-error" class="error-message"></div>
+                <div id="buy-success" class="success-message"></div>
+                
+                <div class="form-actions">
+                    <button type="button" id="calculate-btn" class="btn btn-secondary">Calculate Total</button>
+                    <button type="submit" class="btn btn-primary" id="submit-btn" disabled>Buy Stock</button>
+                    <a href="dashboard.html" class="btn btn-link">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script src="js/validation.js"></script>
+    <script>
+        // Check authentication
+        checkAuth();
+        
+        let currentPrice = 0;
+        let cashAvailable = 0;
+        
+        // Get cash balance
+        async function loadCashBalance() {
+            try {
+                const response = await fetch('/api/stocks/portfolio');
+                const data = await response.json();
+                if (data.success) {
+                    cashAvailable = data.portfolio.cashBalance;
+                    document.getElementById('available-cash').textContent = `$${cashAvailable.toFixed(2)}`;
+                }
+            } catch (error) {
+                console.error('Error loading cash balance:', error);
+            }
+        }
+        
+        // Lookup stock price
+        document.getElementById('lookup-btn').addEventListener('click', async () => {
+            const ticker = document.getElementById('ticker-symbol').value.trim().toUpperCase();
+            
+            if (!ticker) {
+                showError('buy-error', 'Please enter a ticker symbol');
+                return;
+            }
+            
+            if (!validateTickerSymbol(ticker)) {
+                showError('buy-error', 'Invalid ticker symbol format');
+                return;
+            }
+            
+            clearMessages();
+            document.getElementById('lookup-btn').textContent = 'Loading...';
+            document.getElementById('lookup-btn').disabled = true;
+            
+            try {
+                const response = await fetch(`/api/stocks/quote/${ticker}`);
+                const data = await response.json();
+                
+                if (!data.success) {
+                    showError('buy-error', data.error || 'Stock not found');
+                    return;
+                }
+                
+                currentPrice = data.quote.price;
+                
+                document.getElementById('stock-name').textContent = data.quote.symbol;
+                document.getElementById('current-price').textContent = `$${currentPrice.toFixed(2)}`;
+                
+                const changeClass = data.quote.change >= 0 ? 'positive' : 'negative';
+                const changeSymbol = data.quote.change >= 0 ? '+' : '';
+                document.getElementById('price-change').innerHTML = 
+                    `<span class="${changeClass}">${changeSymbol}$${data.quote.change.toFixed(2)} (${changeSymbol}${data.quote.changePercent.toFixed(2)}%)</span>`;
+                
+                document.getElementById('stock-info').style.display = 'block';
+                document.getElementById('summary-price').textContent = `$${currentPrice.toFixed(2)}`;
+                
+            } catch (error) {
+                showError('buy-error', 'Error fetching stock price. Please try again.');
+            } finally {
+                document.getElementById('lookup-btn').textContent = 'Lookup Price';
+                document.getElementById('lookup-btn').disabled = false;
+            }
+        });
+        
+        // Calculate total cost
+        document.getElementById('calculate-btn').addEventListener('click', () => {
+            const shares = parseInt(document.getElementById('shares').value);
+            
+            if (!currentPrice) {
+                showError('buy-error', 'Please lookup stock price first');
+                return;
+            }
+            
+            if (!shares || shares <= 0) {
+                showError('buy-error', 'Please enter a valid number of shares');
+                return;
+            }
+            
+            const totalCost = shares * currentPrice;
+            
+            document.getElementById('summary-shares').textContent = shares;
+            document.getElementById('total-cost').textContent = `$${totalCost.toFixed(2)}`;
+            document.getElementById('cost-preview').style.display = 'block';
+            
+            // Enable submit if user has enough cash
+            if (totalCost <= cashAvailable) {
+                document.getElementById('submit-btn').disabled = false;
+                clearMessages();
+            } else {
+                document.getElementById('submit-btn').disabled = true;
+                showError('buy-error', `Insufficient funds. You need $${(totalCost - cashAvailable).toFixed(2)} more.`);
+            }
+        });
+        
+        // Submit buy order
+        document.getElementById('buy-stock-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const ticker = document.getElementById('ticker-symbol').value.trim().toUpperCase();
+            const shares = parseInt(document.getElementById('shares').value);
+            const notes = document.getElementById('notes').value.trim();
+            
+            if (!currentPrice) {
+                showError('buy-error', 'Please lookup stock price first');
+                return;
+            }
+            
+            clearMessages();
+            document.getElementById('submit-btn').textContent = 'Processing...';
+            document.getElementById('submit-btn').disabled = true;
+            
+            try {
+                const response = await fetch('/api/stocks/buy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ticker_symbol: ticker,
+                        shares: shares,
+                        notes: notes || null
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showSuccess('buy-success', `Successfully purchased ${shares} shares of ${ticker}!`);
+                    setTimeout(() => {
+                        window.location.href = 'portfolio.html';
+                    }, 2000);
+                } else {
+                    showError('buy-error', data.error || 'Error purchasing stock');
+                    document.getElementById('submit-btn').textContent = 'Buy Stock';
+                    document.getElementById('submit-btn').disabled = false;
+                }
+                
+            } catch (error) {
+                showError('buy-error', 'Error processing order. Please try again.');
+                document.getElementById('submit-btn').textContent = 'Buy Stock';
+                document.getElementById('submit-btn').disabled = false;
+            }
+        });
+        
+        // Logout
+        document.getElementById('logout-btn').addEventListener('click', logout);
+        
+        // Load cash balance on page load
+        loadCashBalance();
+    </script>
+</body>
+</html>
